@@ -68,6 +68,7 @@ Examples:
   kubectl co --list                             - list all available configs
   kubectl co --delete new-config                - delete config with name 'new-config'
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
+  kubectl co                                    - switch to previous config and set current config to previous
 
 Flags:`)
 

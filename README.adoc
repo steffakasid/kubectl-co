@@ -1,5 +1,10 @@
 = Kubectl-co
 
+image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[link="http://www.apache.org/licenses/LICENSE-2.0"]
+image:https://github.com/steffakasid/kubectl-co/actions/workflows/codeql-analysis.yml/badge.svg[link:https://github.com/steffakasid/kubectl-co/actions/workflows/codeql-analysis.yml]
+image:https://github.com/steffakasid/kubectl-co/actions/workflows/release.yml/badge.svg[link:https://github.com/steffakasid/kubectl-co/actions/workflows/release.yml]
+image:https://github.com/steffakasid/kubectl-co/actions/workflows/go-test.yml/badge.svg[link:https://github.com/steffakasid/kubectl-co/actions/workflows/go-test.yml]
+
 This tool aims to make it easy to manage multiple config files. I know there are alternatives around e.g. `kubectl krew info config-registry` but for me I didn't like the deep structure of the commands. I want something as short as possible. Before I created this tool I used some shell functions to basically do the same: 
 
 [source,bash]
@@ -38,3 +43,32 @@ k8s() {
 ----
 
 Unfortunately this was a bit limited so I decided to write a little go tool and integrate it as plugin into kubectl.
+
+NOTE: If you set the KUBECONFIG environment var this will always take precedence before the config file.
+
+== Usage
+
+[source,sh]
+----
+  kubectl co [flags]
+  kubectl-co [flags]
+----
+
+== Preqrequisites
+
+kubectl should be installed (even if the application would also run for it own as `kubectl-co`)
+
+== Examples
+
+  kubectl co --add ~/.kube/config new-config    - adds your current kubeconfig to be used by co with the name 'new-config'
+  kubectl co --add completly-new                - adds a plain new config file which must be inialised afterwards
+  kubectl co --list                             - list all available configs
+  kubectl co --delete new-config                - delete config with name 'new-config'
+  kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
+  kubectl co                                    - switch to previous config and set current config to previous
+
+== Flags:
+  -a, --add:: Add a new given config providing the path and the name. Usage: `kubectl co --add  [configname] [configpath]`
+  --debug:: Turn on debug output
+  -d, --delete:: Delete the config with the given name. Usage: `kubectl co --delete [configname]`
+  -l, --list:: List all available config files
