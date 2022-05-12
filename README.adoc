@@ -1,0 +1,40 @@
+= Kubectl-co
+
+This tool aims to make it easy to manage multiple config files. I know there are alternatives around e.g. `kubectl krew info config-registry` but for me I didn't like the deep structure of the commands. I want something as short as possible. Before I created this tool I used some shell functions to basically do the same: 
+
+[source,bash]
+----
+setKubeCtx() {
+    export KUBECONFIG=$1
+    unlink ~/.kube/config
+    ln -s $1 ~/.kube/config
+    kubectx $2
+}
+
+k8s() {
+  if [ -z ${1} ]; then
+    echo $KUBECONFIG
+    ll ~/.kube/config
+  else
+    if [ $1 = "prod" ]; then
+      setKubeCtx ~/.kube/eks-prod.yml eks-prod
+    elif [ $1 = "dev" ]; then
+      setKubeCtx ~/.kube/eks-dev.yml eks-dev
+    elif [ $1 = "poc" ]; then
+      setKubeCtx ~/.kube/eks-poc.yml eks-poc
+    elif [ $1 = "nextcloud" ]; then
+      setKubeCtx ~/.kube/config-nextcloud.yml microk8s
+    elif [ $1 = "berlin" ]; then
+      setKubeCtx ~/.kube/config-berlin.yml default/berlin/steffenrumpf
+      oc project &> /dev/null || oc login | tail -n 2 | head -n 1 | sed -e 's/You must obtain an API token by visiting //g' | xargs open
+    elif [ $1 = "madrid" ]; then
+      setKubeCtx ~/.kube/config-madrid.yml default/madrid/steffenrumpf
+      oc project &> /dev/null || oc login | tail -n 2 | head -n 1 | sed -e 's/You must obtain an API token by visiting //g' | xargs open
+    else
+      setKubeCtx ~/.kube/eks-test.yml eks-test
+    fi
+  fi
+}
+----
+
+Unfortunately this was a bit limited so I decided to write a little go tool and integrate it as plugin into kubectl.
