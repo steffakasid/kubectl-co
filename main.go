@@ -5,43 +5,31 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"io/ioutil"
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	logger "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/steffakasid/kubectl-co/internal"
 )
 
-type config struct {
-	Delete       bool `mapstructure:"delete"`
-	Add          bool `mapstructure:"add"`
-	List         bool `mapstructure:"list"`
-	ConfigName   string
-	ConfigPath   string
-	PreviousPath string
-	CurrentPath  string
+type cmdCfg struct {
+	Delete bool `mapstructure:"delete"`
+	Debug  bool `mapstructure:"debug"`
+	Add    bool `mapstructure:"add"`
+	List   bool `mapstructure:"list"`
 }
 
-var co *config = &config{}
-
-var (
-	home     string
-	dotKube  string
-	confDir  string
-	prevLn   string
-	kubeConf string
-)
+var c *cmdCfg = &cmdCfg{}
+var co *internal.CO
 
 var version = "0.1-development"
 
 const (
 	viperKeyList    = "list"
+	viperKeyDebug   = "debug"
 	viperKeyDelete  = "delete"
 	viperKeyAdd     = "add"
 	viperKeyHelp    = "help"
@@ -50,25 +38,12 @@ const (
 
 func init() {
 	var err error
-	home, err = os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-	dotKube = fmt.Sprintf("%s/.kube", home)
-	confDir = fmt.Sprintf("%s/co", dotKube)
-	kubeConf = fmt.Sprintf("%s/config", dotKube)
-	prevLn = fmt.Sprintf("%s/previous", confDir)
-
-	if _, err = os.Stat(confDir); errors.Is(err, fs.ErrNotExist) {
-		err := os.Mkdir(confDir, 0700)
-		CheckError(err, logger.Fatalf)
-	} else if err != nil {
-		CheckError(err, logrus.Fatalf)
-	}
+	logger.SetLevel(logger.InfoLevel)
 
 	flag.BoolP(viperKeyDelete, "d", false, "Delete the config with the given name. Usage: kubectl co --delete [configname]")
 	flag.BoolP(viperKeyAdd, "a", false, "Add a new given config providing the path and the name. Usage: kubectl co --add [configpath] [configname]")
 	flag.BoolP(viperKeyList, "l", false, "List all available config files")
+	flag.Bool(viperKeyDebug, false, "Turn on debug output")
 
 	flag.Usage = func() {
 		w := os.Stderr
@@ -93,7 +68,6 @@ Examples:
   kubectl co --list                             - list all available configs
   kubectl co --delete new-config                - delete config with name 'new-config'
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
-  '
 
 Flags:`)
 
@@ -103,19 +77,74 @@ Flags:`)
 	flag.Parse()
 	err = viper.BindPFlags(flag.CommandLine)
 	CheckError(err, logger.Fatalf)
-	err = viper.Unmarshal(co)
+	err = viper.Unmarshal(c)
 	CheckError(err, logger.Fatalf)
-	logger.SetLevel(logger.DebugLevel)
+
+	if c.Debug {
+		logger.SetLevel(logger.DebugLevel)
+	}
+
+	home, err := os.UserHomeDir()
+	CheckError(err, logger.Fatalf)
+	co, err = internal.NewCO(home)
+	CheckError(err, logger.Fatalf)
 }
 
 func main() {
 	if viper.GetBool(viperKeyVersion) {
 		fmt.Printf("kubectl-co version: %s\n", version)
-	} else if viper.GetBool(viperKeyHelp) {
-		flag.Usage()
 	} else {
-		parseFlags(os.Args)
+		var err error
+		var configs []string
+
+		clArgs, err := parseFlags(os.Args)
+		CheckError(err, logger.Fatalf)
+
+		if len(clArgs) > 0 {
+			co.ConfigName = clArgs[0]
+		}
+
+		if c.Add {
+			copyConfigFrom := ""
+			if len(clArgs) == 2 {
+				copyConfigFrom = clArgs[1]
+			}
+			err = co.AddConfig(copyConfigFrom)
+		} else if c.Delete {
+			err = co.DeleteConfig()
+		} else if c.List {
+			configs, err = co.ListConfigs()
+			for _, config := range configs {
+				fmt.Println(config)
+			}
+		} else {
+			err = co.LinkKubeConfig()
+		}
+		CheckError(err, logger.Fatalf)
 	}
+}
+
+func parseFlags(args []string) ([]string, error) {
+	logger.Debug("args", args)
+	logger.Debug("config", c)
+
+	var clArgs []string = []string{}
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") && !strings.Contains(arg, "kubectl-co") {
+			clArgs = append(clArgs, arg)
+		}
+	}
+
+	if (c.Delete && c.Add) || (c.Delete && c.List) || (c.Add && c.List) {
+		return nil, fmt.Errorf("%s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyList)
+	} else if c.Delete && len(clArgs) != 1 {
+		return nil, fmt.Errorf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete)
+	} else if c.Add && (len(clArgs) == 0 || len(clArgs) > 2) {
+		return nil, fmt.Errorf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd)
+	} else if c.List && len(clArgs) != 0 {
+		return nil, fmt.Errorf("%s doesn't take any arguments", viperKeyList)
+	}
+	return clArgs, nil
 }
 
 func CheckError(err error, loggerFunc func(format string, args ...interface{})) (wasError bool) {
@@ -126,111 +155,4 @@ func CheckError(err error, loggerFunc func(format string, args ...interface{})) 
 		loggerFunc("%s\n", err)
 	}
 	return wasError
-}
-
-func parseFlags(args []string) {
-	logger.Debug("args", args)
-	logger.Debug("config", co)
-	var clArgs []string = []string{}
-	var err error
-
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") && !strings.Contains(arg, "kubectl-co") {
-			clArgs = append(clArgs, arg)
-		}
-	}
-
-	co.PreviousPath, err = os.Readlink(prevLn)
-	CheckError(err, logger.Debugf)
-
-	co.CurrentPath, err = os.Readlink(kubeConf)
-	CheckError(err, logger.Debugf)
-
-	if co.Delete && co.Add {
-		panic(fmt.Sprintf("%s and %s can't be used togeether!", viperKeyAdd, viperKeyDelete))
-	} else if co.Delete && len(clArgs) != 1 {
-		panic(fmt.Sprintf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete))
-	} else if co.Delete && len(clArgs) == 1 {
-		co.ConfigName = clArgs[0]
-		deleteKubeConfig()
-	} else if co.Add && (len(clArgs) == 0 || len(clArgs) > 2) {
-		panic(fmt.Sprintf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd))
-	} else if co.Add && len(clArgs) == 2 {
-		co.ConfigPath = clArgs[0]
-		co.ConfigName = clArgs[1]
-		addConfig()
-	} else if co.Add && len(clArgs) == 1 {
-		co.ConfigName = clArgs[0]
-		addConfig()
-	} else if co.List {
-		listConfigs()
-	} else {
-		if len(clArgs) == 1 {
-			co.ConfigName = clArgs[0]
-		}
-		linkKubeConfig()
-	}
-}
-
-func addConfig() {
-	configToWrite := fmt.Sprintf("%s/.kube/co/%s", home, co.ConfigName)
-
-	if co.ConfigPath == "" {
-		os.Create(configToWrite)
-		fmt.Printf("Created new config file %s. You may need to initalize it.", configToWrite)
-	} else {
-		input, err := ioutil.ReadFile(co.ConfigPath)
-		CheckError(err, logrus.Fatalf)
-
-		err = ioutil.WriteFile(configToWrite, input, 0600)
-		CheckError(err, logrus.Fatalf)
-		fmt.Println("Added", configToWrite)
-	}
-}
-
-func linkKubeConfig() {
-	var configToUse string
-
-	err := os.Remove(kubeConf)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		CheckError(err, logrus.Fatalf)
-	}
-
-	err = os.Remove(prevLn)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		CheckError(err, logrus.Fatalf)
-	}
-
-	if co.ConfigName != "" {
-		configToUse = fmt.Sprintf("%s/%s", confDir, co.ConfigName)
-	} else if co.PreviousPath != "" {
-		configToUse = co.PreviousPath
-	} else {
-		panic("Don't know what to do. Need a configname to configure")
-	}
-
-	err = os.Symlink(configToUse, kubeConf)
-	CheckError(err, logrus.Fatalf)
-
-	err = os.Symlink(co.CurrentPath, prevLn)
-	CheckError(err, logrus.Fatalf)
-
-	fmt.Printf("Linked %s to %s\n", kubeConf, configToUse)
-	logger.Debugf("Linked %s to %s", prevLn, co.CurrentPath)
-}
-
-func deleteKubeConfig() {
-	configToUse := fmt.Sprintf("%s/%s", confDir, co.ConfigName)
-	if _, err := os.Stat(configToUse); err != nil {
-		panic(err)
-	}
-	fmt.Println("Deleted", configToUse)
-}
-
-func listConfigs() {
-	entries, err := os.ReadDir(confDir)
-	CheckError(err, logger.Fatalf)
-	for _, entry := range entries {
-		fmt.Println(entry.Name())
-	}
 }
