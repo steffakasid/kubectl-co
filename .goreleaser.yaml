@@ -8,13 +8,11 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
       - darwin
 archives:
   - replacements:
       darwin: Darwin
       linux: Linux
-      windows: Windows
       386: i386
       amd64: x86_64
 checksum:
@@ -33,7 +31,7 @@ brews:
     # GitHub/GitLab repository to push the formula to
     tap:
       owner: steffakasid
-      name: homebrew-lc
+      name: homebrew-kubectl-co
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
 
     # Git author used to commit to the repository.
@@ -49,6 +47,6 @@ brews:
     # Default is the root folder.
     folder: Formula
 
-    homepage: "https://github.com/steffakasid/trivy-project-scanner"
-    description: "This tool can be used collect from AWS cloudwatch log groups"
+    homepage: "https://github.com/steffakasid/kubectl-go"
+    description: "This tool can be used to manage and switch between multiple kube config files."
     license: "Apache-2.0"
