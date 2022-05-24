@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	logger "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
@@ -94,20 +93,21 @@ func main() {
 	if viper.GetBool(viperKeyVersion) {
 		fmt.Printf("kubectl-co version: %s\n", version)
 	} else {
-		var err error
 		var configs []string
 
-		clArgs, err := parseFlags(os.Args)
+		args := flag.Args()
+		err := parseFlags(args)
+
 		CheckError(err, logger.Fatalf)
 
-		if len(clArgs) > 0 {
-			co.ConfigName = clArgs[0]
+		if len(args) > 0 {
+			co.ConfigName = args[0]
 		}
 
 		if c.Add {
 			copyConfigFrom := ""
-			if len(clArgs) == 2 {
-				copyConfigFrom = clArgs[1]
+			if len(args) == 2 {
+				copyConfigFrom = args[1]
 			}
 			err = co.AddConfig(copyConfigFrom)
 		} else if c.Delete {
@@ -124,27 +124,19 @@ func main() {
 	}
 }
 
-func parseFlags(args []string) ([]string, error) {
-	logger.Debug("args", args)
+func parseFlags(args []string) error {
 	logger.Debug("config", c)
 
-	var clArgs []string = []string{}
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") && !strings.Contains(arg, "kubectl-co") {
-			clArgs = append(clArgs, arg)
-		}
-	}
-
 	if (c.Delete && c.Add) || (c.Delete && c.List) || (c.Add && c.List) {
-		return nil, fmt.Errorf("%s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyList)
-	} else if c.Delete && len(clArgs) != 1 {
-		return nil, fmt.Errorf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete)
-	} else if c.Add && (len(clArgs) == 0 || len(clArgs) > 2) {
-		return nil, fmt.Errorf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd)
-	} else if c.List && len(clArgs) != 0 {
-		return nil, fmt.Errorf("%s doesn't take any arguments", viperKeyList)
+		return fmt.Errorf("%s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyList)
+	} else if c.Delete && len(args) != 1 {
+		return fmt.Errorf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete)
+	} else if c.Add && (len(args) == 0 || len(args) > 2) {
+		return fmt.Errorf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd)
+	} else if c.List && len(args) != 0 {
+		return fmt.Errorf("%s doesn't take any arguments", viperKeyList)
 	}
-	return clArgs, nil
+	return nil
 }
 
 func CheckError(err error, loggerFunc func(format string, args ...interface{})) (wasError bool) {
