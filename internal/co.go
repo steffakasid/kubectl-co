@@ -139,7 +139,9 @@ func (co CO) ListConfigs() ([]string, error) {
 	}
 	configs := []string{}
 	for _, entry := range entries {
-		configs = append(configs, entry.Name())
+		if entry.Name() != "previous" {
+			configs = append(configs, entry.Name())
+		}
 	}
 	return configs, nil
 }
