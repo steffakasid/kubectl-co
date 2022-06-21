@@ -44,6 +44,7 @@ func init() {
 	flag.BoolP(viperKeyAdd, "a", false, "Add a new given config providing the path and the name. Usage: kubectl co --add [configpath] [configname]")
 	flag.BoolP(viperKeyList, "l", false, "List all available config files")
 	flag.BoolP(viperKeyCurrent, "c", false, "Show current config file")
+	flag.BoolP(viperKeyHelp, "h", false, "Show help")
 	flag.Bool(viperKeyDebug, false, "Turn on debug output")
 
 	flag.Usage = func() {
@@ -95,6 +96,8 @@ Flags:`)
 func main() {
 	if viper.GetBool(viperKeyVersion) {
 		fmt.Printf("kubectl-co version: %s\n", version)
+	} else if viper.GetBool(viperKeyHelp) {
+		flag.Usage()
 	} else {
 		var configs []string
 
