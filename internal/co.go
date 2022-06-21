@@ -98,6 +98,10 @@ func (co CO) LinkKubeConfig() error {
 		return errors.New("don't know what to do. Need a configname to configure.")
 	}
 
+	if _, err := os.Stat(configToUse); errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
 	if err := os.Symlink(configToUse, co.KubeConfigPath); err != nil {
 		return err
 	}
