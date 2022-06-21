@@ -63,7 +63,10 @@ func (co CO) AddConfig(newConfigPath string) error {
 	configToWrite := fmt.Sprintf("%s/%s", co.CObasePath, co.ConfigName)
 
 	if newConfigPath == "" {
-		os.Create(configToWrite)
+		_, err := os.Create(configToWrite)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("Created new config file %s. You may need to initalize it.", configToWrite)
 	} else {
 		input, err := ioutil.ReadFile(newConfigPath)
