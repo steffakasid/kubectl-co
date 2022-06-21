@@ -14,10 +14,11 @@ import (
 )
 
 type cmdCfg struct {
-	Delete bool `mapstructure:"delete"`
-	Debug  bool `mapstructure:"debug"`
-	Add    bool `mapstructure:"add"`
-	List   bool `mapstructure:"list"`
+	Delete  bool `mapstructure:"delete"`
+	Debug   bool `mapstructure:"debug"`
+	Add     bool `mapstructure:"add"`
+	List    bool `mapstructure:"list"`
+	Current bool `mapstructure:"current"`
 }
 
 var c *cmdCfg = &cmdCfg{}
@@ -30,6 +31,7 @@ const (
 	viperKeyDebug   = "debug"
 	viperKeyDelete  = "delete"
 	viperKeyAdd     = "add"
+	viperKeyCurrent = "current"
 	viperKeyHelp    = "help"
 	viperKeyVersion = "version"
 )
@@ -41,6 +43,7 @@ func init() {
 	flag.BoolP(viperKeyDelete, "d", false, "Delete the config with the given name. Usage: kubectl co --delete [configname]")
 	flag.BoolP(viperKeyAdd, "a", false, "Add a new given config providing the path and the name. Usage: kubectl co --add [configpath] [configname]")
 	flag.BoolP(viperKeyList, "l", false, "List all available config files")
+	flag.BoolP(viperKeyCurrent, "c", false, "Show current config file")
 	flag.Bool(viperKeyDebug, false, "Turn on debug output")
 
 	flag.Usage = func() {
@@ -117,6 +120,8 @@ func main() {
 			for _, config := range configs {
 				fmt.Println(config)
 			}
+		} else if c.Current {
+			fmt.Println("Current config file:", co.CurrentConfigPath)
 		} else {
 			err = co.LinkKubeConfig()
 		}
