@@ -6,7 +6,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/fatih/color"
 	logger "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -14,11 +16,11 @@ import (
 )
 
 type cmdCfg struct {
-	Delete  bool `mapstructure:"delete"`
-	Debug   bool `mapstructure:"debug"`
-	Add     bool `mapstructure:"add"`
-	List    bool `mapstructure:"list"`
-	Current bool `mapstructure:"current"`
+	Delete   bool `mapstructure:"delete"`
+	Debug    bool `mapstructure:"debug"`
+	Add      bool `mapstructure:"add"`
+	Previous bool `mapstructure:"previous"`
+	Current  bool `mapstructure:"current"`
 }
 
 var c *cmdCfg = &cmdCfg{}
@@ -27,13 +29,13 @@ var co *internal.CO
 var version = "0.1-development"
 
 const (
-	viperKeyList    = "list"
-	viperKeyDebug   = "debug"
-	viperKeyDelete  = "delete"
-	viperKeyAdd     = "add"
-	viperKeyCurrent = "current"
-	viperKeyHelp    = "help"
-	viperKeyVersion = "version"
+	viperKeyPrevious = "previous"
+	viperKeyCurrent  = "current"
+	viperKeyDebug    = "debug"
+	viperKeyDelete   = "delete"
+	viperKeyAdd      = "add"
+	viperKeyHelp     = "help"
+	viperKeyVersion  = "version"
 )
 
 func init() {
@@ -42,8 +44,8 @@ func init() {
 
 	flag.BoolP(viperKeyDelete, "d", false, "Delete the config with the given name. Usage: kubectl co --delete [configname]")
 	flag.BoolP(viperKeyAdd, "a", false, "Add a new given config providing the path and the name. Usage: kubectl co --add [configpath] [configname]")
-	flag.BoolP(viperKeyList, "l", false, "List all available config files")
-	flag.BoolP(viperKeyCurrent, "c", false, "Show current config file")
+	flag.BoolP(viperKeyPrevious, "p", false, "Switch to previous config")
+	flag.BoolP(viperKeyCurrent, "c", false, "Show the current config path")
 	flag.BoolP(viperKeyHelp, "h", false, "Show help")
 	flag.Bool(viperKeyDebug, false, "Turn on debug output")
 
@@ -67,10 +69,11 @@ Preqrequisites:
 Examples:
   kubectl co --add ~/.kube/config new-config    - adds your current kubeconfig to be used by co with the name 'new-config'
   kubectl co --add completly-new                - adds a plain new config file which must be inialised afterwards
-  kubectl co --list                             - list all available configs
+  kubectl co --previous                         - switch to previous config and set current config to previous
   kubectl co --delete new-config                - delete config with name 'new-config'
+  kubectl co --current                          - show the current config path
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
-  kubectl co                                    - switch to previous config and set current config to previous
+  kubectl co                                    - list all available configs
 
 Flags:`)
 
@@ -118,15 +121,20 @@ func main() {
 			err = co.AddConfig(copyConfigFrom)
 		} else if c.Delete {
 			err = co.DeleteConfig()
-		} else if c.List {
-			configs, err = co.ListConfigs()
-			for _, config := range configs {
-				fmt.Println(config)
-			}
-		} else if c.Current {
-			fmt.Println("Current config file:", co.CurrentConfigPath)
-		} else {
+		} else if c.Previous || len(args) == 1 {
 			err = co.LinkKubeConfig()
+		} else {
+			configs, err = co.ListConfigs()
+
+			red := color.New(color.FgRed)
+
+			for _, config := range configs {
+				if strings.Contains(co.CurrentConfigPath, config) {
+					red.Println(config)
+				} else {
+					fmt.Println(config)
+				}
+			}
 		}
 		CheckError(err, logger.Fatalf)
 	}
@@ -135,14 +143,14 @@ func main() {
 func parseFlags(args []string) error {
 	logger.Debug("config", c)
 
-	if (c.Delete && c.Add) || (c.Delete && c.List) || (c.Add && c.List) {
-		return fmt.Errorf("%s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyList)
+	if (c.Current && c.Previous) || (c.Delete && c.Previous) || (c.Delete && c.Current) || (c.Add && c.Previous) || (c.Add && c.Current) || (c.Add && c.Delete) {
+		return fmt.Errorf("%s, %s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyPrevious, viperKeyCurrent)
 	} else if c.Delete && len(args) != 1 {
 		return fmt.Errorf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete)
 	} else if c.Add && (len(args) == 0 || len(args) > 2) {
 		return fmt.Errorf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd)
-	} else if c.List && len(args) != 0 {
-		return fmt.Errorf("%s doesn't take any arguments", viperKeyList)
+	} else if c.Previous && len(args) != 0 {
+		return fmt.Errorf("%s doesn't take any arguments", viperKeyPrevious)
 	}
 	return nil
 }
