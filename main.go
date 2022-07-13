@@ -67,7 +67,7 @@ Preqrequisites:
   kubectl should be installed (even if the application would also run for it own as 'kubectl-co')
 
 Examples:
-  kubectl co --add ~/.kube/config new-config    - adds your current kubeconfig to be used by co with the name 'new-config'
+  kubectl co --add new-config ~/.kube/config    - adds your current kubeconfig to be used by co with the name 'new-config'
   kubectl co --add completly-new                - adds a plain new config file which must be inialised afterwards
   kubectl co --previous                         - switch to previous config and set current config to previous
   kubectl co --delete new-config                - delete config with name 'new-config'
