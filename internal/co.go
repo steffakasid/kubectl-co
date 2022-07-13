@@ -67,6 +67,10 @@ func (co CO) AddConfig(newConfigPath string) error {
 		if err != nil {
 			return err
 		}
+		err = os.Chmod(configToWrite, 0600)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("Created new config file %s. You may need to initalize it.", configToWrite)
 	} else {
 		input, err := ioutil.ReadFile(newConfigPath)
