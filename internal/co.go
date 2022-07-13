@@ -135,6 +135,16 @@ func (co CO) DeleteConfig() error {
 	if _, err := os.Stat(configToUse); err != nil {
 		return err
 	}
+	co.ConfigName = ""
+	err := co.LinkKubeConfig()
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(configToUse)
+	if err != nil {
+		return err
+	}
 	fmt.Println("Deleted", configToUse)
 	return nil
 }
