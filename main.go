@@ -119,6 +119,7 @@ func main() {
 				copyConfigFrom = args[1]
 			}
 			err = co.AddConfig(copyConfigFrom)
+			co.LinkKubeConfig()
 		} else if c.Delete {
 			err = co.DeleteConfig()
 		} else if c.Previous || len(args) == 1 {
