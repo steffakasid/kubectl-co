@@ -59,10 +59,6 @@ add, delete and switch config files.
 
 NOTE: If you set the KUBECONFIG environment var this will always take precedence before the config file.
 
-Usage:
-  kubectl co [flags]
-  kubectl-co [flags]
-
 Preqrequisites:
   kubectl should be installed (even if the application would also run for it own as 'kubectl-co')
 
@@ -74,6 +70,11 @@ Examples:
   kubectl co --current                          - show the current config path
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
   kubectl co                                    - list all available configs
+
+Usage:
+  kubectl co [flags]
+  kubectl-co [flags]
+
 
 Flags:`)
 
@@ -102,46 +103,19 @@ func main() {
 	} else if viper.GetBool(viperKeyHelp) {
 		flag.Usage()
 	} else {
-		var configs []string
-
 		args := flag.Args()
-		err := parseFlags(args)
+		err := validateFlags(args)
 
 		CheckError(err, logger.Fatalf)
 
 		if len(args) > 0 {
 			co.ConfigName = args[0]
 		}
-
-		if c.Add {
-			copyConfigFrom := ""
-			if len(args) == 2 {
-				copyConfigFrom = args[1]
-			}
-			err = co.AddConfig(copyConfigFrom)
-			co.LinkKubeConfig()
-		} else if c.Delete {
-			err = co.DeleteConfig()
-		} else if c.Previous || len(args) == 1 {
-			err = co.LinkKubeConfig()
-		} else {
-			configs, err = co.ListConfigs()
-
-			red := color.New(color.FgRed)
-
-			for _, config := range configs {
-				if strings.Contains(co.CurrentConfigPath, config) {
-					red.Println(config)
-				} else {
-					fmt.Println(config)
-				}
-			}
-		}
-		CheckError(err, logger.Fatalf)
+		execute(args)
 	}
 }
 
-func parseFlags(args []string) error {
+func validateFlags(args []string) error {
 	logger.Debug("config", c)
 
 	if (c.Current && c.Previous) || (c.Delete && c.Previous) || (c.Delete && c.Current) || (c.Add && c.Previous) || (c.Add && c.Current) || (c.Add && c.Delete) {
@@ -154,6 +128,37 @@ func parseFlags(args []string) error {
 		return fmt.Errorf("%s doesn't take any arguments", viperKeyPrevious)
 	}
 	return nil
+}
+
+func execute(args []string) {
+	var configs []string
+	var err error
+
+	if c.Add {
+		copyConfigFrom := ""
+		if len(args) == 2 {
+			copyConfigFrom = args[1]
+		}
+		err = co.AddConfig(copyConfigFrom)
+		co.LinkKubeConfig()
+	} else if c.Delete {
+		err = co.DeleteConfig()
+	} else if c.Previous || len(args) == 1 {
+		err = co.LinkKubeConfig()
+	} else {
+		configs, err = co.ListConfigs()
+
+		red := color.New(color.FgRed)
+
+		for _, config := range configs {
+			if strings.Contains(co.CurrentConfigPath, config) {
+				red.Println(config)
+			} else {
+				fmt.Println(config)
+			}
+		}
+	}
+	CheckError(err, logger.Fatalf)
 }
 
 func CheckError(err error, loggerFunc func(format string, args ...interface{})) (wasError bool) {
