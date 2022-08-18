@@ -30,9 +30,18 @@ func NewCO(home string) (*CO, error) {
 	var err error
 	var co *CO = &CO{}
 
-	co.CObasePath = fmt.Sprintf("%s/%s/%s", home, dotKube, COfolderName)
+	kubeHome := fmt.Sprintf("%s/%s", home, dotKube)
+
+	co.CObasePath = fmt.Sprintf("%s/%s", kubeHome, COfolderName)
 	co.KubeConfigPath = fmt.Sprintf("%s/%s/config", home, dotKube)
 	co.PreviousConfigLink = fmt.Sprintf("%s/previous", co.CObasePath)
+
+	if _, err = os.Stat(kubeHome); errors.Is(err, fs.ErrNotExist) {
+		err := os.Mkdir(kubeHome, 0700)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if _, err = os.Stat(co.CObasePath); errors.Is(err, fs.ErrNotExist) {
 		err := os.Mkdir(co.CObasePath, 0700)
