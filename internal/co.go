@@ -84,12 +84,12 @@ func (co CO) AddConfig(newConfigPath string) error {
 		}
 		fmt.Printf("Created new config file %s. You may need to initalize it.", configToWrite)
 	} else {
-		input, err := ioutil.ReadFile(newConfigPath)
+		input, err := os.ReadFile(newConfigPath)
 		if err != nil {
 			return err
 		}
 
-		err = ioutil.WriteFile(configToWrite, input, onlyOwnerAccess)
+		err = os.WriteFile(configToWrite, input, onlyOwnerAccess)
 		if err != nil {
 			return err
 		}
