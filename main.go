@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	logger "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	extendedslog "github.com/steffakasid/extended-slog"
 	"github.com/steffakasid/kubectl-co/internal"
 )
 
@@ -40,7 +40,7 @@ const (
 
 func init() {
 	var err error
-	logger.SetLevel(logger.InfoLevel)
+	extendedslog.InitLogger()
 
 	flag.BoolP(viperKeyDelete, "d", false, "Delete the config with the given name. Usage: kubectl co --delete [configname]")
 	flag.BoolP(viperKeyAdd, "a", false, "Add a new given config providing the path and the name. Usage: kubectl co --add [configpath] [configname]")
@@ -83,18 +83,18 @@ Flags:`)
 
 	flag.Parse()
 	err = viper.BindPFlags(flag.CommandLine)
-	CheckError(err, logger.Fatalf)
+	CheckError(err, extendedslog.Logger.Fatalf)
 	err = viper.Unmarshal(c)
-	CheckError(err, logger.Fatalf)
+	CheckError(err, extendedslog.Logger.Fatalf)
 
 	if c.Debug {
-		logger.SetLevel(logger.DebugLevel)
+		extendedslog.Logger.SetLogLevel("debug")
 	}
 
 	home, err := os.UserHomeDir()
-	CheckError(err, logger.Fatalf)
+	CheckError(err, extendedslog.Logger.Fatalf)
 	co, err = internal.NewCO(home)
-	CheckError(err, logger.Fatalf)
+	CheckError(err, extendedslog.Logger.Fatalf)
 }
 
 func main() {
@@ -106,7 +106,7 @@ func main() {
 		args := flag.Args()
 		err := validateFlags(args)
 
-		CheckError(err, logger.Fatalf)
+		CheckError(err, extendedslog.Logger.Fatalf)
 
 		if len(args) > 0 {
 			co.ConfigName = args[0]
@@ -116,7 +116,7 @@ func main() {
 }
 
 func validateFlags(args []string) error {
-	logger.Debug("config", c)
+	extendedslog.Logger.Debug("config", c)
 
 	if (c.Current && c.Previous) || (c.Delete && c.Previous) || (c.Delete && c.Current) || (c.Add && c.Previous) || (c.Add && c.Current) || (c.Add && c.Delete) {
 		return fmt.Errorf("%s, %s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyPrevious, viperKeyCurrent)
@@ -158,7 +158,7 @@ func execute(args []string) {
 			}
 		}
 	}
-	CheckError(err, logger.Fatalf)
+	CheckError(err, extendedslog.Logger.Fatalf)
 }
 
 func CheckError(err error, loggerFunc func(format string, args ...interface{})) (wasError bool) {

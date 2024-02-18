@@ -5,10 +5,15 @@ import (
 	"path"
 	"testing"
 
+	extendedslog "github.com/steffakasid/extended-slog"
 	"github.com/stretchr/testify/assert"
 )
 
-var initCO = func(t *testing.T) (co *CO, home string, kubeHome string, coHome string, previousFile string, previousLink string) {
+func init() {
+	extendedslog.InitLogger()
+}
+
+func initCO(t *testing.T) (co *CO, home string, kubeHome string, coHome string, previousFile string, previousLink string) {
 	home = t.TempDir()
 
 	kubeHome = path.Join(home, ".kube")

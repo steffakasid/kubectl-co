@@ -4,10 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 
-	logger "github.com/sirupsen/logrus"
+	extendedslog "github.com/steffakasid/extended-slog"
 )
 
 const (
@@ -82,7 +81,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Created new config file %s. You may need to initalize it.", configToWrite)
+		extendedslog.Logger.Infof("Created new config file %s. You may need to initalize it.", configToWrite)
 	} else {
 		input, err := os.ReadFile(newConfigPath)
 		if err != nil {
@@ -93,7 +92,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("Added", configToWrite)
+		extendedslog.Logger.Infof("Added %s", configToWrite)
 	}
 	return nil
 }
@@ -130,7 +129,7 @@ func (co CO) LinkKubeConfig() error {
 		if err := os.Symlink(co.CurrentConfigPath, co.PreviousConfigLink); err != nil {
 			return err
 		}
-		logger.Debugf("Linked %s to %s", co.PreviousConfigLink, co.CurrentConfigPath)
+		extendedslog.Logger.Debugf("Linked %s to %s", co.PreviousConfigLink, co.CurrentConfigPath)
 	}
 
 	return nil
