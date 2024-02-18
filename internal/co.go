@@ -26,6 +26,8 @@ type CO struct {
 	CurrentConfigPath  string
 }
 
+const onlyOwnerAccess = 0700
+
 func NewCO(home string) (*CO, error) {
 	var err error
 	var co *CO = &CO{}
@@ -37,14 +39,14 @@ func NewCO(home string) (*CO, error) {
 	co.PreviousConfigLink = fmt.Sprintf("%s/previous", co.CObasePath)
 
 	if _, err = os.Stat(kubeHome); errors.Is(err, fs.ErrNotExist) {
-		err := os.Mkdir(kubeHome, 0700)
+		err := os.Mkdir(kubeHome, onlyOwnerAccess)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if _, err = os.Stat(co.CObasePath); errors.Is(err, fs.ErrNotExist) {
-		err := os.Mkdir(co.CObasePath, 0700)
+		err := os.Mkdir(co.CObasePath, onlyOwnerAccess)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +78,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 		if err != nil {
 			return err
 		}
-		err = os.Chmod(configToWrite, 0600)
+		err = os.Chmod(configToWrite, onlyOwnerAccess)
 		if err != nil {
 			return err
 		}
@@ -87,7 +89,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 			return err
 		}
 
-		err = ioutil.WriteFile(configToWrite, input, 0600)
+		err = ioutil.WriteFile(configToWrite, input, onlyOwnerAccess)
 		if err != nil {
 			return err
 		}
@@ -119,6 +121,10 @@ func (co CO) LinkKubeConfig() error {
 		return err
 	}
 	fmt.Printf("Linked %s to %s\n", co.KubeConfigPath, configToUse)
+	// chmod on symlink to avoid kubectl warnings.
+	if err := os.Chmod(co.KubeConfigPath, onlyOwnerAccess); err != nil {
+		return err
+	}
 
 	if co.CurrentConfigPath != "" {
 		if err := os.Symlink(co.CurrentConfigPath, co.PreviousConfigLink); err != nil {
