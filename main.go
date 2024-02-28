@@ -154,7 +154,7 @@ func execute(args []string) {
 		red := color.New(color.FgRed)
 
 		for _, config := range configs {
-			if strings.Contains(co.CurrentConfigPath, config) {
+			if strings.HasSuffix(co.CurrentConfigPath, config) {
 				red.Println(config)
 			} else {
 				fmt.Println(config)
