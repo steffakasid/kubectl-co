@@ -4,6 +4,7 @@ Copyright © 2022 steffakasid
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -23,7 +24,7 @@ type cmdCfg struct {
 	Current  bool `mapstructure:"current"`
 }
 
-var c *cmdCfg = &cmdCfg{}
+var config *cmdCfg = &cmdCfg{}
 var co *internal.CO
 
 var version = "0.1-development"
@@ -40,7 +41,6 @@ const (
 
 func init() {
 	var err error
-	extendedslog.InitLogger()
 
 	flag.BoolP(viperKeyDelete, "d", false, "Delete the config with the given name. Usage: kubectl co --delete [configname]")
 	flag.BoolP(viperKeyAdd, "a", false, "Add a new given config providing the path and the name. Usage: kubectl co --add [configpath] [configname]")
@@ -50,10 +50,10 @@ func init() {
 	flag.Bool(viperKeyDebug, false, "Turn on debug output")
 
 	flag.Usage = func() {
-		w := os.Stderr
+		stdErr := os.Stderr
 
-		fmt.Fprintf(w, "Usage of %s: \n", os.Args[0])
-		fmt.Fprintln(w, `
+		fmt.Fprintf(stdErr, "Usage of %s: \n", os.Args[0])
+		fmt.Fprintln(stdErr, `
 This tool can be used to work with multiple kube configs. It allows to
 add, delete and switch config files.
 
@@ -66,7 +66,7 @@ Examples:
   kubectl co --add new-config ~/.kube/config    - adds your current kubeconfig to be used by co with the name 'new-config'
   kubectl co --add completly-new                - adds a plain new config file which must be inialised afterwards
   kubectl co --previous                         - switch to previous config and set current config to previous
-  kubectl co --delete new-config                - delete config with name 'new-config'
+  kubectl co --delete config-name               - delete config with name 'new-config'
   kubectl co --current                          - show the current config path
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
   kubectl co                                    - list all available configs
@@ -75,7 +75,6 @@ Usage:
   kubectl co [flags]
   kubectl-co [flags]
 
-
 Flags:`)
 
 		flag.PrintDefaults()
@@ -83,18 +82,20 @@ Flags:`)
 
 	flag.Parse()
 	err = viper.BindPFlags(flag.CommandLine)
-	CheckError(err, extendedslog.Logger.Fatalf)
-	err = viper.Unmarshal(c)
-	CheckError(err, extendedslog.Logger.Fatalf)
+	extendedslog.Logger.Fatalf("Error binding flags: %w", err)
+	err = viper.Unmarshal(config)
+	extendedslog.Logger.Fatalf("Error unmarshal config: %w", err)
 
-	if c.Debug {
-		extendedslog.Logger.SetLogLevel("debug")
+	if config.Debug {
+		err = extendedslog.Logger.SetLogLevel("debug")
+		extendedslog.Logger.Fatalf("Error SetLogLevel(debug): %w", err)
 	}
 
 	home, err := os.UserHomeDir()
-	CheckError(err, extendedslog.Logger.Fatalf)
+	extendedslog.Logger.Fatalf("Can not get homedir: %w", err)
+
 	co, err = internal.NewCO(home)
-	CheckError(err, extendedslog.Logger.Fatalf)
+	extendedslog.Logger.Fatalf("Error initializing co: %w", err)
 }
 
 func main() {
@@ -106,7 +107,7 @@ func main() {
 		args := flag.Args()
 		err := validateFlags(args)
 
-		CheckError(err, extendedslog.Logger.Fatalf)
+		extendedslog.Logger.Fatalf("Error validating flags: %w", err)
 
 		if len(args) > 0 {
 			co.ConfigName = args[0]
@@ -116,15 +117,15 @@ func main() {
 }
 
 func validateFlags(args []string) error {
-	extendedslog.Logger.Debug("config", c)
+	extendedslog.Logger.Debugf("config %s", toString(config))
 
-	if (c.Current && c.Previous) || (c.Delete && c.Previous) || (c.Delete && c.Current) || (c.Add && c.Previous) || (c.Add && c.Current) || (c.Add && c.Delete) {
+	if (config.Current && config.Previous) || (config.Delete && config.Previous) || (config.Delete && config.Current) || (config.Add && config.Previous) || (config.Add && config.Current) || (config.Add && config.Delete) {
 		return fmt.Errorf("%s, %s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyPrevious, viperKeyCurrent)
-	} else if c.Delete && len(args) != 1 {
+	} else if config.Delete && len(args) != 1 {
 		return fmt.Errorf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete)
-	} else if c.Add && (len(args) == 0 || len(args) > 2) {
+	} else if config.Add && (len(args) == 0 || len(args) > 2) {
 		return fmt.Errorf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd)
-	} else if c.Previous && len(args) != 0 {
+	} else if config.Previous && len(args) != 0 {
 		return fmt.Errorf("%s doesn't take any arguments", viperKeyPrevious)
 	}
 	return nil
@@ -134,16 +135,18 @@ func execute(args []string) {
 	var configs []string
 	var err error
 
-	if c.Add {
+	if config.Add {
 		copyConfigFrom := ""
 		if len(args) == 2 {
 			copyConfigFrom = args[1]
 		}
 		err = co.AddConfig(copyConfigFrom)
-		co.LinkKubeConfig()
-	} else if c.Delete {
+		if err != nil {
+			err = co.LinkKubeConfig()
+		}
+	} else if config.Delete {
 		err = co.DeleteConfig()
-	} else if c.Previous || len(args) == 1 {
+	} else if config.Previous || len(args) == 1 {
 		err = co.LinkKubeConfig()
 	} else {
 		configs, err = co.ListConfigs()
@@ -158,15 +161,13 @@ func execute(args []string) {
 			}
 		}
 	}
-	CheckError(err, extendedslog.Logger.Fatalf)
+	extendedslog.Logger.Fatalf("Error on execute: %w", err)
 }
 
-func CheckError(err error, loggerFunc func(format string, args ...interface{})) (wasError bool) {
-	wasError = false
+func toString(obj any) string {
 
-	if err != nil {
-		wasError = true
-		loggerFunc("%s\n", err)
-	}
-	return wasError
+	bt, err := json.Marshal(obj)
+	extendedslog.Logger.Errorf("error marshalling obj to json string: %s", err)
+
+	return string(bt)
 }
