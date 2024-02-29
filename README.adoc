@@ -60,12 +60,15 @@ kubectl should be installed (even if the application would also run for it own a
 
 == Examples
 
+[source, sh]
+----
   kubectl co --add new-config ~/.kube/config    - adds your current kubeconfig to be used by co with the name 'new-config'
   kubectl co --add completly-new                - adds a plain new config file which must be inialised afterwards
   kubectl co --list                             - list all available configs
   kubectl co --delete new-config                - delete config with name 'new-config'
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
   kubectl co                                    - switch to previous config and set current config to previous
+----
 
 == Flags:
   -a, --add:: Add a new given config providing the path and the name. Usage: `kubectl co --add  [configname] [configpath]`
