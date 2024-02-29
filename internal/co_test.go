@@ -91,7 +91,7 @@ func TestCleanup(t *testing.T) {
 
 		kubeConfig := path.Join(kubeHome, "config")
 		_, err := os.Create(kubeConfig)
-		require.Error(t, err)
+		require.NoError(t, err)
 
 		err = co.cleanup()
 		require.NoError(t, err)
