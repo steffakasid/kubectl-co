@@ -12,7 +12,7 @@ import (
 	"github.com/fatih/color"
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	extendedslog "github.com/steffakasid/extended-slog"
+	"github.com/steffakasid/eslog"
 	"github.com/steffakasid/kubectl-co/internal"
 )
 
@@ -82,20 +82,20 @@ Flags:`)
 
 	flag.Parse()
 	err = viper.BindPFlags(flag.CommandLine)
-	extendedslog.Logger.Fatalf("Error binding flags: %w", err)
+	eslog.Logger.Fatalf("Error binding flags: %s", err)
 	err = viper.Unmarshal(config)
-	extendedslog.Logger.Fatalf("Error unmarshal config: %w", err)
+	eslog.Logger.Fatalf("Error unmarshal config: %s", err)
 
 	if config.Debug {
-		err = extendedslog.Logger.SetLogLevel("debug")
-		extendedslog.Logger.Fatalf("Error SetLogLevel(debug): %w", err)
+		err = eslog.Logger.SetLogLevel("debug")
+		eslog.Logger.Fatalf("Error SetLogLevel(debug): %s", err)
 	}
 
 	home, err := os.UserHomeDir()
-	extendedslog.Logger.Fatalf("Can not get homedir: %w", err)
+	eslog.Logger.Fatalf("Can not get homedir: %s", err)
 
 	co, err = internal.NewCO(home)
-	extendedslog.Logger.Fatalf("Error initializing co: %w", err)
+	eslog.Logger.Fatalf("Error initializing co: %s", err)
 }
 
 func main() {
@@ -107,7 +107,7 @@ func main() {
 		args := flag.Args()
 		err := validateFlags(args)
 
-		extendedslog.Logger.Fatalf("Error validating flags: %w", err)
+		eslog.Logger.Fatalf("Error validating flags: %s", err)
 
 		if len(args) > 0 {
 			co.ConfigName = args[0]
@@ -117,7 +117,7 @@ func main() {
 }
 
 func validateFlags(args []string) error {
-	extendedslog.Logger.Debugf("config %s", toString(config))
+	eslog.Logger.Debugf("config %s", toString(config))
 
 	if (config.Current && config.Previous) || (config.Delete && config.Previous) || (config.Delete && config.Current) || (config.Add && config.Previous) || (config.Add && config.Current) || (config.Add && config.Delete) {
 		return fmt.Errorf("%s, %s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyPrevious, viperKeyCurrent)
@@ -161,13 +161,13 @@ func execute(args []string) {
 			}
 		}
 	}
-	extendedslog.Logger.Fatalf("Error on execute: %w", err)
+	eslog.Logger.Fatalf("Error on execute: %s", err)
 }
 
 func toString(obj any) string {
 
 	bt, err := json.Marshal(obj)
-	extendedslog.Logger.Errorf("error marshalling obj to json string: %s", err)
+	eslog.Logger.Errorf("error marshalling obj to json string: %s", err)
 
 	return string(bt)
 }
