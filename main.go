@@ -82,20 +82,20 @@ Flags:`)
 
 	flag.Parse()
 	err = viper.BindPFlags(flag.CommandLine)
-	eslog.Logger.Fatalf("Error binding flags: %s", err)
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Error binding flags: %s")
 	err = viper.Unmarshal(config)
-	eslog.Logger.Fatalf("Error unmarshal config: %s", err)
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Error unmarshal config: %s")
 
 	if config.Debug {
 		err = eslog.Logger.SetLogLevel("debug")
-		eslog.Logger.Fatalf("Error SetLogLevel(debug): %s", err)
+		eslog.LogIfErrorf(err, eslog.Fatalf, "Error SetLogLevel(debug): %s")
 	}
 
 	home, err := os.UserHomeDir()
-	eslog.Logger.Fatalf("Can not get homedir: %s", err)
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Can not get homedir: %s")
 
 	co, err = internal.NewCO(home)
-	eslog.Logger.Fatalf("Error initializing co: %s", err)
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Error initializing co: %s")
 }
 
 func main() {
@@ -106,8 +106,7 @@ func main() {
 	} else {
 		args := flag.Args()
 		err := validateFlags(args)
-
-		eslog.Logger.Fatalf("Error validating flags: %s", err)
+		eslog.LogIfErrorf(err, eslog.Fatalf, "Error validating flags: %s")
 
 		if len(args) > 0 {
 			co.ConfigName = args[0]
@@ -161,13 +160,13 @@ func execute(args []string) {
 			}
 		}
 	}
-	eslog.Logger.Fatalf("Error on execute: %s", err)
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Error on execute: %s")
 }
 
 func toString(obj any) string {
 
 	bt, err := json.Marshal(obj)
-	eslog.Logger.Errorf("error marshalling obj to json string: %s", err)
+	eslog.LogIfErrorf(err, eslog.Errorf, "error marshalling obj to json string: %s")
 
 	return string(bt)
 }
