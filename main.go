@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/fatih/color"
@@ -81,6 +82,14 @@ Flags:`)
 	}
 
 	flag.Parse()
+	home, err := os.UserHomeDir()
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Can not get homedir: %s")
+
+	viper.AddConfigPath(path.Join(home, ".config", "kubectl-co"))
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	err = viper.ReadInConfig()
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Error reading config: %s")
 	err = viper.BindPFlags(flag.CommandLine)
 	eslog.LogIfErrorf(err, eslog.Fatalf, "Error binding flags: %s")
 	err = viper.Unmarshal(config)
@@ -89,10 +98,10 @@ Flags:`)
 	if config.Debug {
 		err = eslog.Logger.SetLogLevel("debug")
 		eslog.LogIfErrorf(err, eslog.Fatalf, "Error SetLogLevel(debug): %s")
+	} else {
+		err = eslog.Logger.SetLogLevel("info")
+		eslog.LogIfErrorf(err, eslog.Fatalf, "Error SetLogLevel(info): %s")
 	}
-
-	home, err := os.UserHomeDir()
-	eslog.LogIfErrorf(err, eslog.Fatalf, "Can not get homedir: %s")
 
 	co, err = internal.NewCO(home)
 	eslog.LogIfErrorf(err, eslog.Fatalf, "Error initializing co: %s")
