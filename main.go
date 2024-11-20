@@ -116,7 +116,7 @@ func main() {
 }
 
 func validateFlags(args []string) error {
-	eslog.Logger.Debugf("config %s", toString(config))
+	eslog.Debugf("config %s", toString(config))
 
 	if (config.Current && config.Previous) || (config.Delete && config.Previous) || (config.Delete && config.Current) || (config.Add && config.Previous) || (config.Add && config.Current) || (config.Add && config.Delete) {
 		return fmt.Errorf("%s, %s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyPrevious, viperKeyCurrent)

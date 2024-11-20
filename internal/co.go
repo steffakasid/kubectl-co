@@ -81,7 +81,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 		if err != nil {
 			return err
 		}
-		eslog.Logger.Infof("Created new config file %s. You may need to initalize it.", configToWrite)
+		eslog.Infof("Created new config file %s. You may need to initalize it.", configToWrite)
 	} else {
 		input, err := os.ReadFile(newConfigPath)
 		if err != nil {
@@ -92,7 +92,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 		if err != nil {
 			return err
 		}
-		eslog.Logger.Infof("Added %s", configToWrite)
+		eslog.Infof("Added %s", configToWrite)
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func (co CO) LinkKubeConfig() error {
 		if err := os.Symlink(co.CurrentConfigPath, co.PreviousConfigLink); err != nil {
 			return err
 		}
-		eslog.Logger.Debugf("Linked %s to %s", co.PreviousConfigLink, co.CurrentConfigPath)
+		eslog.Debugf("Linked %s to %s", co.PreviousConfigLink, co.CurrentConfigPath)
 	}
 
 	return nil
