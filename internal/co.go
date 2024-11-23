@@ -32,24 +32,15 @@ func NewCO(home string) (*CO, error) {
 	var co *CO = &CO{}
 
 	kubeHome := fmt.Sprintf("%s/%s", home, dotKube)
+	if err := initKubeHome(kubeHome); err != nil {
+		return nil, err
+	}
 
 	co.CObasePath = fmt.Sprintf("%s/%s", kubeHome, COfolderName)
 	co.KubeConfigPath = fmt.Sprintf("%s/%s/config", home, dotKube)
 	co.PreviousConfigLink = fmt.Sprintf("%s/previous", co.CObasePath)
 
-	if _, err = os.Stat(kubeHome); errors.Is(err, fs.ErrNotExist) {
-		err := os.Mkdir(kubeHome, onlyOwnerAccess)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if _, err = os.Stat(co.CObasePath); errors.Is(err, fs.ErrNotExist) {
-		err := os.Mkdir(co.CObasePath, onlyOwnerAccess)
-		if err != nil {
-			return nil, err
-		}
-	} else if err != nil {
+	if err := co.initCOHome(); err != nil {
 		return nil, err
 	}
 
@@ -67,6 +58,28 @@ func NewCO(home string) (*CO, error) {
 	}
 
 	return co, nil
+}
+
+func initKubeHome(kubeHome string) error {
+	if _, err := os.Stat(kubeHome); errors.Is(err, fs.ErrNotExist) {
+		err := os.Mkdir(kubeHome, onlyOwnerAccess)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (co CO) initCOHome() error {
+	if _, err := os.Stat(co.CObasePath); errors.Is(err, fs.ErrNotExist) {
+		err := os.Mkdir(co.CObasePath, onlyOwnerAccess)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (co CO) AddConfig(newConfigPath string) error {
@@ -112,6 +125,14 @@ func (co CO) LinkKubeConfig() error {
 		return errors.New("don't know what to do. Need a configname to configure.")
 	}
 
+	if err := co.linkConfigToUse(configToUse); err != nil {
+		return err
+	}
+
+	return co.linkPreviousConfig()
+}
+
+func (co CO) linkConfigToUse(configToUse string) error {
 	if _, err := os.Stat(configToUse); errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
@@ -124,14 +145,16 @@ func (co CO) LinkKubeConfig() error {
 	if err := os.Chmod(co.KubeConfigPath, onlyOwnerAccess); err != nil {
 		return err
 	}
+	return nil
+}
 
+func (co CO) linkPreviousConfig() error {
 	if co.CurrentConfigPath != "" {
 		if err := os.Symlink(co.CurrentConfigPath, co.PreviousConfigLink); err != nil {
 			return err
 		}
 		eslog.Debugf("Linked %s to %s", co.PreviousConfigLink, co.CurrentConfigPath)
 	}
-
 	return nil
 }
 
