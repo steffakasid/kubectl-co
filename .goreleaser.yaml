@@ -9,6 +9,8 @@ builds:
     goos:
       - linux
       - darwin
+    ldflags:
+      - "-X main.version={{.Version}}"
 checksum:
   name_template: "checksums.txt"
 changelog:
