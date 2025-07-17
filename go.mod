@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/fatih/color v1.18.0
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
 	github.com/steffakasid/eslog v0.3.5
 	github.com/stretchr/testify v1.10.0
