@@ -29,7 +29,7 @@ const onlyOwnerAccess = 0700
 
 func NewCO(home string) (*CO, error) {
 	var err error
-	var co *CO = &CO{}
+	var co = &CO{}
 
 	kubeHome := fmt.Sprintf("%s/%s", home, dotKube)
 	if err := initKubeHome(kubeHome); err != nil {
@@ -113,16 +113,20 @@ func (co CO) AddConfig(newConfigPath string) error {
 func (co CO) LinkKubeConfig() error {
 	var configToUse string
 
-	if err := co.cleanup(); err != nil {
-		return err
-	}
-
 	if co.ConfigName != "" {
 		configToUse = fmt.Sprintf("%s/%s", co.CObasePath, co.ConfigName)
 	} else if co.PreviousConifgPath != "" {
 		configToUse = co.PreviousConifgPath
 	} else {
-		return errors.New("don't know what to do. Need a configname to configure.")
+		return errors.New("don't know what to do. Need a configname to configure")
+	}
+
+	if _, err := os.Stat(configToUse); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	if err := co.cleanup(); err != nil {
+		return err
 	}
 
 	if err := co.linkConfigToUse(configToUse); err != nil {

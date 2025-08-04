@@ -129,6 +129,19 @@ func TestLinkKubeConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, configFile, expectedLink)
 	})
+
+	t.Run("Target does not exist", func(t *testing.T) {
+		co := initCO(t)
+
+		co.ConfigName = "notexistingconfig"
+
+		_, err := os.Create(co.KubeConfigPath)
+		require.NoError(t, err)
+
+		err = co.LinkKubeConfig()
+		require.NoError(t, err)
+		assert.FileExists(t, co.KubeConfigPath)
+	})
 }
 
 func TestCleanup(t *testing.T) {
