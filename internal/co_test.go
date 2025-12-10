@@ -73,75 +73,140 @@ func TestInitCOHome(t *testing.T) {
 }
 
 func TestAddConfig(t *testing.T) {
-
-	t.Run("Add new config", func(t *testing.T) {
+	t.Run("Create new file", func(t *testing.T) {
 		co := initCO(t)
-		co.ConfigName = "testconfig"
-		expectedConfigFile := path.Join(co.CObasePath, "testconfig")
+		co.ConfigName = "newconfig"
+		target := path.Join(co.CObasePath, co.ConfigName)
+
 		err := co.AddConfig("")
 		require.NoError(t, err)
-		assert.FileExists(t, expectedConfigFile)
+		assert.FileExists(t, target)
 	})
 
-	t.Run("Add new config 2", func(t *testing.T) {
+	t.Run("Copy from existing file", func(t *testing.T) {
 		co := initCO(t)
-		co.ConfigName = "testconfig"
-		expectedConfigFile := path.Join(co.CObasePath, "testconfig")
-		err := co.AddConfig("../test/test.yml")
+		co.ConfigName = "copiedconfig"
+		srcDir := t.TempDir()
+		srcFile := path.Join(srcDir, "source.yml")
+		content := []byte("kind: Config\n")
+		err := os.WriteFile(srcFile, content, 0600)
 		require.NoError(t, err)
-		assert.FileExists(t, expectedConfigFile)
+
+		err = co.AddConfig(srcFile)
+		require.NoError(t, err)
+
+		target := path.Join(co.CObasePath, co.ConfigName)
+		assert.FileExists(t, target)
+
+		got, err := os.ReadFile(target)
+		require.NoError(t, err)
+		assert.Equal(t, content, got)
 	})
 
-	t.Run("Add not existing config", func(t *testing.T) {
+	t.Run("NonExistingSource", func(t *testing.T) {
 		co := initCO(t)
-		co.ConfigName = "testconfig"
-		err := co.AddConfig("not-existing.yml")
+		co.ConfigName = "willfail"
+
+		err := co.AddConfig("does-not-exist.yml")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "no such file or directory")
+		assert.Contains(t, err.Error(), "no such file or directory")
 	})
 
-	t.Run("Add missconfigured co name", func(t *testing.T) {
+	t.Run("InvalidCObasePath", func(t *testing.T) {
 		co := initCO(t)
-		co.ConfigName = "testconfig"
-		co.CObasePath = "../no-existing-path"
-		err := co.AddConfig("../test/test.yml")
+		co.ConfigName = "badpath"
+		co.CObasePath = path.Join(t.TempDir(), "non", "existent", "dir")
+
+		err := co.AddConfig("")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "no such file or directory")
+		assert.Contains(t, err.Error(), "no such file or directory")
 	})
 }
 
 func TestLinkKubeConfig(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		co := initCO(t)
+	tests := []struct {
+		name         string
+		setup        func(t *testing.T) *CO
+		wantErr      bool
+		wantLink     bool
+		expectedLink string
+	}{
+		{
+			name: "use previous",
+			setup: func(t *testing.T) *CO {
+				co := initCO(t)
+				co.ConfigName = ""
+				require.NotEmpty(t, co.PreviousConifgPath)
+				return co
+			},
+			wantErr:      false,
+			wantLink:     true,
+			expectedLink: "", // validated from co.PreviousConifgPath inside subtest
+		},
+		{
+			name: "no input",
+			setup: func(t *testing.T) *CO {
+				co := initCO(t)
+				co.ConfigName = ""
+				co.PreviousConifgPath = ""
+				return co
+			},
+			wantErr:  true,
+			wantLink: false,
+		},
+		{
+			name: "target missing and kubeconfig absent",
+			setup: func(t *testing.T) *CO {
+				co := initCO(t)
+				co.ConfigName = "not-existing-config"
+				_ = os.Remove(co.KubeConfigPath)
+				assert.NoFileExists(t, co.KubeConfigPath)
+				return co
+			},
+			wantErr:  false,
+			wantLink: false,
+		},
+		{
+			name: "target exists",
+			setup: func(t *testing.T) *CO {
+				co := initCO(t)
+				co.ConfigName = "existsconfig"
+				target := path.Join(co.CObasePath, co.ConfigName)
+				_, err := os.Create(target)
+				require.NoError(t, err)
+				return co
+			},
+			wantErr:  false,
+			wantLink: true,
+		},
+	}
 
-		co.ConfigName = "testconfig"
-		configFile := path.Join(co.CObasePath, co.ConfigName)
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			co := tc.setup(t)
+			err := co.LinkKubeConfig()
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 
-		_, err := os.Create(configFile)
-		require.NoError(t, err)
-
-		err = co.LinkKubeConfig()
-
-		require.NoError(t, err)
-		assert.FileExists(t, co.KubeConfigPath)
-
-		expectedLink, err := os.Readlink(co.KubeConfigPath)
-		require.NoError(t, err)
-		assert.Equal(t, configFile, expectedLink)
-	})
-
-	t.Run("Target does not exist", func(t *testing.T) {
-		co := initCO(t)
-
-		co.ConfigName = "notexistingconfig"
-
-		_, err := os.Create(co.KubeConfigPath)
-		require.NoError(t, err)
-
-		err = co.LinkKubeConfig()
-		require.NoError(t, err)
-		assert.FileExists(t, co.KubeConfigPath)
-	})
+			if tc.wantLink {
+				assert.FileExists(t, co.KubeConfigPath)
+				linkTarget, err := os.Readlink(co.KubeConfigPath)
+				require.NoError(t, err)
+				if tc.name == "use previous" {
+					assert.Equal(t, co.PreviousConifgPath, linkTarget)
+				} else {
+					expected := path.Join(co.CObasePath, co.ConfigName)
+					assert.Equal(t, expected, linkTarget)
+				}
+			} else {
+				assert.NoFileExists(t, co.KubeConfigPath)
+			}
+		})
+	}
 }
 
 func TestCleanup(t *testing.T) {
@@ -169,6 +234,50 @@ func TestDeleteConfig(t *testing.T) {
 		err = co.DeleteConfig()
 		require.NoError(t, err)
 		assert.NoFileExists(t, configFile)
+	})
+	t.Run("Non existing config", func(t *testing.T) {
+		co := initCO(t)
+		co.ConfigName = "does-not-exist"
+
+		err := co.DeleteConfig()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not exist")
+	})
+
+	t.Run("Link error", func(t *testing.T) {
+		co := initCO(t)
+		co.ConfigName = "willlinkfail"
+		target := path.Join(co.CObasePath, co.ConfigName)
+
+		_, err := os.Create(target)
+		require.NoError(t, err)
+
+		// Ensure there's no previous config so after DeleteConfig clears ConfigName,
+		// LinkKubeConfig will fail with "don't know what to do..."
+		co.PreviousConifgPath = ""
+
+		err = co.DeleteConfig()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to link kube config after deletion")
+		// original config file should still exist on link failure
+		assert.FileExists(t, target)
+	})
+
+	t.Run("Remove failure", func(t *testing.T) {
+		co := initCO(t)
+		co.ConfigName = "dirconfig"
+		target := path.Join(co.CObasePath, co.ConfigName)
+
+		// create a non-empty directory so os.Remove will fail
+		require.NoError(t, os.Mkdir(target, 0700))
+		_, err := os.Create(path.Join(target, "child"))
+		require.NoError(t, err)
+
+		err = co.DeleteConfig()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete config file")
+		// directory should still exist after failed deletion
+		assert.DirExists(t, target)
 	})
 }
 
