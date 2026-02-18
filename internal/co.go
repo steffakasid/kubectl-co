@@ -61,6 +61,9 @@ func NewCO(home string) (*CO, error) {
 	return co, nil
 }
 
+// initKubeHome creates the kube home directory if it does not exist.
+// The directory is created with permissions that only allow owner access (0700).
+// Returns an error if the directory creation fails.
 func initKubeHome(kubeHome string) error {
 	if _, err := os.Stat(kubeHome); errors.Is(err, fs.ErrNotExist) {
 		err := os.Mkdir(kubeHome, onlyOwnerAccess)
@@ -71,6 +74,9 @@ func initKubeHome(kubeHome string) error {
 	return nil
 }
 
+// initCOHome initializes the CO home directory by creating it if it does not exist.
+// It returns an error if the directory creation fails or if an unexpected error occurs
+// when checking for the directory's existence.
 func (co *CO) initCOHome() error {
 	if _, err := os.Stat(co.CObasePath); errors.Is(err, fs.ErrNotExist) {
 		err := os.Mkdir(co.CObasePath, onlyOwnerAccess)
@@ -83,6 +89,11 @@ func (co *CO) initCOHome() error {
 	return nil
 }
 
+// AddConfig creates or copies a kubeconfig file to the CO base path.
+// If newConfigPath is empty, it creates a new empty config file with owner-only access permissions.
+// If newConfigPath is provided, it reads the config from that path and writes it to the CO base path.
+// The created or copied config file will be named according to co.ConfigName.
+// Returns an error if file operations fail.
 func (co *CO) AddConfig(newConfigPath string) error {
 	configToWrite := fmt.Sprintf("%s/%s", co.CObasePath, co.ConfigName)
 
@@ -111,6 +122,22 @@ func (co *CO) AddConfig(newConfigPath string) error {
 	return nil
 }
 
+// LinkKubeConfig creates a symbolic link to the specified Kubernetes configuration file.
+// It determines which configuration to use based on the following priority:
+//  1. co.ConfigName - if provided, uses the config from co.CObasePath
+//  2. co.PreviousConifgPath - if ConfigName is empty, falls back to the previous config path
+//
+// If the configuration file to use doesn't exist, the function returns nil without error.
+// Otherwise, it performs the following steps:
+//  1. Cleans up any previous Kubernetes configuration
+//  2. Links the selected configuration file
+//  3. Creates a link to the previous configuration for rollback purposes
+//
+// Returns an error if:
+//   - Neither ConfigName nor PreviousConifgPath is set
+//   - Cleanup of previous configuration fails
+//   - Linking the configuration fails
+//   - Linking the previous configuration fails
 func (co *CO) LinkKubeConfig() error {
 	var configToUse string
 
@@ -137,6 +164,10 @@ func (co *CO) LinkKubeConfig() error {
 	return co.linkPreviousConfig()
 }
 
+// linkConfigToUse creates a symbolic link from co.KubeConfigPath to the specified configToUse file.
+// It first verifies that configToUse exists, then creates the symlink and sets its permissions to
+// onlyOwnerAccess to avoid kubectl warnings. Returns an error if the config file doesn't exist,
+// if symlink creation fails, or if setting permissions fails.
 func (co *CO) linkConfigToUse(configToUse string) error {
 	if _, err := os.Stat(configToUse); errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("config file %s does not exist", configToUse)
@@ -153,6 +184,9 @@ func (co *CO) linkConfigToUse(configToUse string) error {
 	return nil
 }
 
+// linkPreviousConfig creates a symbolic link to the current config file at the previous config link path.
+// If CurrentConfigPath is set, it creates a symlink from PreviousConfigLink pointing to CurrentConfigPath.
+// Returns an error if the symlink creation fails.
 func (co *CO) linkPreviousConfig() error {
 	if co.CurrentConfigPath != "" {
 		if err := os.Symlink(co.CurrentConfigPath, co.PreviousConfigLink); err != nil {
@@ -163,6 +197,8 @@ func (co *CO) linkPreviousConfig() error {
 	return nil
 }
 
+// cleanup removes the kube config symlink and previous config symlink.
+// It returns an error if either removal fails, unless the file does not exist.
 func (co *CO) cleanup() error {
 	err := os.Remove(co.KubeConfigPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -176,6 +212,11 @@ func (co *CO) cleanup() error {
 	return nil
 }
 
+// DeleteConfig removes the configuration file associated with the CO instance.
+// It first verifies that the config file exists, then clears the ConfigName,
+// relinks the kubeconfig to remove the deleted config, and finally deletes the file.
+// Returns an error if the config file does not exist, if relinking the kubeconfig fails,
+// or if the file deletion fails.
 func (co *CO) DeleteConfig() error {
 	configToUse := fmt.Sprintf("%s/%s", co.CObasePath, co.ConfigName)
 	if _, err := os.Stat(configToUse); err != nil {
@@ -195,6 +236,9 @@ func (co *CO) DeleteConfig() error {
 	return nil
 }
 
+// ListConfigs reads the CO base directory and populates the Configs field with
+// all directory entries except "previous". It returns an error if the directory
+// cannot be read.
 func (co *CO) ListConfigs() error {
 	entries, err := os.ReadDir(co.CObasePath)
 	if err != nil {
