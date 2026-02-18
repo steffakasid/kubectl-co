@@ -26,7 +26,6 @@ type cmdCfg struct {
 }
 
 var config *cmdCfg = &cmdCfg{}
-var co *internal.CO
 
 var version = "0.1-development"
 
@@ -53,8 +52,9 @@ func init() {
 	flag.Usage = func() {
 		stdErr := os.Stderr
 
-		fmt.Fprintf(stdErr, "Usage of %s: \n", os.Args[0])
-		fmt.Fprintln(stdErr, `
+		_, err := fmt.Fprintf(stdErr, "Usage of %s: \n", os.Args[0])
+		eslog.LogIfErrorf(err, eslog.Fatalf, "Error printing usage: %s")
+		_, err = fmt.Fprintln(stdErr, `
 This tool can be used to work with multiple kube configs. It allows to
 add, delete and switch config files.
 
@@ -75,23 +75,28 @@ Examples:
 Usage:
   kubectl co [flags]
   kubectl-co [flags]
+  kubectl-co completion bash|zsh
 
 Flags:`)
+		eslog.LogIfErrorf(err, eslog.Fatalf, "Error printing usage: %s")
 
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
-	home, err := os.UserHomeDir()
-	eslog.LogIfErrorf(err, eslog.Fatalf, "Can not get homedir: %s")
+	initHome()
 
 	viper.AddConfigPath(path.Join(home, ".config", "kubectl-co"))
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
+	viper.SetEnvPrefix("KUBECTL_CO")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 	err = viper.ReadInConfig()
 	eslog.LogIfErrorf(err, eslog.Errorf, "Error reading config: %s")
 	err = viper.BindPFlags(flag.CommandLine)
 	eslog.LogIfErrorf(err, eslog.Fatalf, "Error binding flags: %s")
+
 	err = viper.Unmarshal(config)
 	eslog.LogIfErrorf(err, eslog.Fatalf, "Error unmarshal config: %s")
 
@@ -103,8 +108,11 @@ Flags:`)
 		eslog.LogIfErrorf(err, eslog.Fatalf, "Error SetLogLevel(info): %s")
 	}
 
-	co, err = internal.NewCO(home)
-	eslog.LogIfErrorf(err, eslog.Fatalf, "Error initializing co: %s")
+	if isCompletionInvocation() {
+		handleCompletion()
+		os.Exit(0)
+	}
+
 }
 
 func main() {
@@ -114,12 +122,13 @@ func main() {
 		flag.Usage()
 	} else {
 		args := flag.Args()
+		if len(args) > 0 && args[0] == "completion" {
+			handleCompletionCommand(args[1:])
+			return
+		}
 		err := validateFlags(args)
 		eslog.LogIfErrorf(err, eslog.Fatalf, "Error validating flags: %s")
 
-		if len(args) > 0 {
-			co.ConfigName = args[0]
-		}
 		execute(args)
 	}
 }
@@ -130,9 +139,9 @@ func validateFlags(args []string) error {
 	if (config.Current && config.Previous) || (config.Delete && config.Previous) || (config.Delete && config.Current) || (config.Add && config.Previous) || (config.Add && config.Current) || (config.Add && config.Delete) {
 		return fmt.Errorf("%s, %s, %s and %s are exklusiv just use one at a time", viperKeyAdd, viperKeyDelete, viperKeyPrevious, viperKeyCurrent)
 	} else if config.Delete && len(args) != 1 {
-		return fmt.Errorf("When using %s you must only provide the name of the config to be deleted!", viperKeyDelete)
+		return fmt.Errorf("when using %s you must only provide the name of the config to be deleted", viperKeyDelete)
 	} else if config.Add && (len(args) == 0 || len(args) > 2) {
-		return fmt.Errorf("When using %s you must provide the path as first argument and the name of the config as second argument!", viperKeyAdd)
+		return fmt.Errorf("when using %s you must provide the path as first argument and the name of the config as second argument", viperKeyAdd)
 	} else if config.Previous && len(args) != 0 {
 		return fmt.Errorf("%s doesn't take any arguments", viperKeyPrevious)
 	}
@@ -140,8 +149,13 @@ func validateFlags(args []string) error {
 }
 
 func execute(args []string) {
-	var configs []string
 	var err error
+
+	co, err := internal.NewCO(home)
+	eslog.LogIfErrorf(err, eslog.Fatalf, "Error initializing co: %s")
+	if len(args) > 0 {
+		co.ConfigName = args[0]
+	}
 
 	if config.Add {
 		copyConfigFrom := ""
@@ -157,16 +171,10 @@ func execute(args []string) {
 	} else if config.Previous || len(args) == 1 {
 		err = co.LinkKubeConfig()
 	} else {
-		configs, err = co.ListConfigs()
+		err = co.ListConfigs()
 
-		red := color.New(color.FgRed)
-
-		for _, config := range configs {
-			if strings.HasSuffix(co.CurrentConfigPath, config) {
-				red.Println(config)
-			} else {
-				fmt.Println(config)
-			}
+		if err == nil {
+			printConfigs(co)
 		}
 	}
 	eslog.LogIfErrorf(err, eslog.Fatalf, "Error on execute: %s")
@@ -178,4 +186,17 @@ func toString(obj any) string {
 	eslog.LogIfErrorf(err, eslog.Errorf, "error marshalling obj to json string: %s")
 
 	return string(bt)
+}
+
+func printConfigs(co *internal.CO) {
+	red := color.New(color.FgRed)
+
+	for _, config := range co.Configs {
+		if strings.HasSuffix(co.CurrentConfigPath, config) {
+			_, err := red.Println(config)
+			eslog.LogIfErrorf(err, eslog.Errorf, "Error printing config: %s")
+		} else {
+			fmt.Println(config)
+		}
+	}
 }

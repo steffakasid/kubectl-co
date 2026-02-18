@@ -23,6 +23,7 @@ type CO struct {
 	PreviousConifgPath string
 	PreviousConfigLink string
 	CurrentConfigPath  string
+	Configs            []string
 }
 
 const onlyOwnerAccess = 0700
@@ -70,7 +71,7 @@ func initKubeHome(kubeHome string) error {
 	return nil
 }
 
-func (co CO) initCOHome() error {
+func (co *CO) initCOHome() error {
 	if _, err := os.Stat(co.CObasePath); errors.Is(err, fs.ErrNotExist) {
 		err := os.Mkdir(co.CObasePath, onlyOwnerAccess)
 		if err != nil {
@@ -82,7 +83,7 @@ func (co CO) initCOHome() error {
 	return nil
 }
 
-func (co CO) AddConfig(newConfigPath string) error {
+func (co *CO) AddConfig(newConfigPath string) error {
 	configToWrite := fmt.Sprintf("%s/%s", co.CObasePath, co.ConfigName)
 
 	if newConfigPath == "" {
@@ -110,7 +111,7 @@ func (co CO) AddConfig(newConfigPath string) error {
 	return nil
 }
 
-func (co CO) LinkKubeConfig() error {
+func (co *CO) LinkKubeConfig() error {
 	var configToUse string
 
 	if co.ConfigName != "" {
@@ -136,7 +137,7 @@ func (co CO) LinkKubeConfig() error {
 	return co.linkPreviousConfig()
 }
 
-func (co CO) linkConfigToUse(configToUse string) error {
+func (co *CO) linkConfigToUse(configToUse string) error {
 	if _, err := os.Stat(configToUse); errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("config file %s does not exist", configToUse)
 	}
@@ -152,7 +153,7 @@ func (co CO) linkConfigToUse(configToUse string) error {
 	return nil
 }
 
-func (co CO) linkPreviousConfig() error {
+func (co *CO) linkPreviousConfig() error {
 	if co.CurrentConfigPath != "" {
 		if err := os.Symlink(co.CurrentConfigPath, co.PreviousConfigLink); err != nil {
 			return fmt.Errorf("failed to create symlink for previous config: %w", err)
@@ -162,7 +163,7 @@ func (co CO) linkPreviousConfig() error {
 	return nil
 }
 
-func (co CO) cleanup() error {
+func (co *CO) cleanup() error {
 	err := os.Remove(co.KubeConfigPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove kube config symlink: %w", err)
@@ -175,7 +176,7 @@ func (co CO) cleanup() error {
 	return nil
 }
 
-func (co CO) DeleteConfig() error {
+func (co *CO) DeleteConfig() error {
 	configToUse := fmt.Sprintf("%s/%s", co.CObasePath, co.ConfigName)
 	if _, err := os.Stat(configToUse); err != nil {
 		return fmt.Errorf("config file %s does not exist: %w", configToUse, err)
@@ -194,10 +195,10 @@ func (co CO) DeleteConfig() error {
 	return nil
 }
 
-func (co CO) ListConfigs() ([]string, error) {
+func (co *CO) ListConfigs() error {
 	entries, err := os.ReadDir(co.CObasePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config directory %s: %w", co.CObasePath, err)
+		return fmt.Errorf("failed to read config directory %s: %w", co.CObasePath, err)
 	}
 	configs := []string{}
 	for _, entry := range entries {
@@ -205,5 +206,6 @@ func (co CO) ListConfigs() ([]string, error) {
 			configs = append(configs, entry.Name())
 		}
 	}
-	return configs, nil
+	co.Configs = configs
+	return nil
 }

@@ -75,3 +75,34 @@ kubectl should be installed (even if the application would also run for it own a
   --debug:: Turn on debug output
   -d, --delete:: Delete the config with the given name. Usage: `kubectl co --delete [configname]`
   -l, --list:: List all available config files
+
+== Environment variables
+
+[source,sh]
+----
+# Prefix all config keys with KUBECTL_CO_
+export KUBECTL_CO_DEBUG=true
+export KUBECTL_CO_DELETE=true
+----
+
+== Shell completion
+
+.Manually enable shell completion
+[source,sh]
+----
+# bash
+source <(kubectl-co completion bash)
+
+# zsh (use bash completion)
+source <(kubectl-co completion zsh)
+----
+
+.Or add to your shell rc file:
+[source,sh]
+----
+# ~/.bashrc
+echo 'source <(kubectl-co completion bash)' >> ~/.bashrc
+
+# ~/.zshrc
+echo 'source <(kubectl-co completion zsh)' >> ~/.zshrc
+----

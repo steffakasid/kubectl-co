@@ -295,18 +295,18 @@ func TestListConfigs(t *testing.T) {
 		_, err = os.Create(anotherFile)
 		require.NoError(t, err)
 
-		configs, err := co.ListConfigs()
+		err = co.ListConfigs()
 		require.NoError(t, err)
-		assert.Equal(t, []string{anotherConfig, "previousconfig", co.ConfigName}, configs)
+		assert.Equal(t, []string{anotherConfig, "previousconfig", co.ConfigName}, co.Configs)
 	})
 
 	t.Run("Error", func(t *testing.T) {
 		co := initCO(t)
 		co.CObasePath = "not-existing-path"
 
-		configs, err := co.ListConfigs()
+		err := co.ListConfigs()
 		require.Error(t, err)
-		require.Len(t, configs, 0)
+		require.Len(t, co.Configs, 0)
 		require.Contains(t, err.Error(), "no such file or directory")
 	})
 }
