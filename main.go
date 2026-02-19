@@ -72,6 +72,13 @@ Examples:
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
   kubectl co                                    - list all available configs
 
+Enable Shell completion:
+  # ~/.bashrc
+  echo 'source <(kubectl-co completion bash)' >> ~/.bashrc
+
+  # ~/.zshrc
+  echo 'source <(kubectl-co completion zsh)' >> ~/.zshrc
+
 Usage:
   kubectl co [flags]
   kubectl-co [flags]
