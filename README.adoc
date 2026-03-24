@@ -69,35 +69,51 @@ NOTE: https://github.com/ahmetb/kubectx[kubectx] solves a different problem: it 
 
 NOTE: If you set the KUBECONFIG environment var this will always take precedence before the config file.
 
-== Preqrequisites
+== Installation
 
-kubectl should be installed (even if the application would also run for it own as `kubectl-co`)
+Using https://brew.sh[Homebrew]:
+
+[source,sh]
+----
+brew install steffakasid/kubectl-co/kubectl-co
+----
+
+Or download the binary from https://github.com/steffakasid/kubectl-co/releases[GitHub Releases] and place it in your `$PATH`.
+
+== Prerequisites
+
+kubectl should be installed (even if the application would also run on its own as `kubectl-co`)
 
 == Examples
 
 [source, sh]
 ----
   kubectl co --add new-config ~/.kube/config    - adds your current kubeconfig to be used by co with the name 'new-config'
-  kubectl co --add completly-new                - adds a plain new config file which must be inialised afterwards
-  kubectl co --list                             - list all available configs
-  kubectl co --delete new-config                - delete config with name 'new-config'
+  kubectl co --add completly-new                - adds a plain new config file which must be initialised afterwards
+  kubectl co --previous                         - switch to previous config and set current config to previous
+  kubectl co --delete config-name               - delete config with name 'config-name'
+  kubectl co --current                          - show the current config path
   kubectl co new-config                         - switch to 'new-config' this will overwrite ~/.kube/config with a symbolic link
-  kubectl co                                    - switch to previous config and set current config to previous
+  kubectl co                                    - list all available configs
 ----
 
 == Flags:
-  -a, --add:: Add a new given config providing the path and the name. Usage: `kubectl co --add  [configname] [configpath]`
+  -a, --add:: Add a new given config providing the name and optionally the path to copy from. Usage: `kubectl co --add <configname> [configpath]`
+  -c, --current:: Show the current config path
+  -d, --delete:: Delete the config with the given name. Usage: `kubectl co --delete <configname>`
+  -p, --previous:: Switch to previous config
   --debug:: Turn on debug output
-  -d, --delete:: Delete the config with the given name. Usage: `kubectl co --delete [configname]`
-  -l, --list:: List all available config files
+  --version:: Show version information
 
-== Environment variables
+== Configuration
 
+kubectl-co can be configured via flags, environment variables, or a config file at `~/.config/kubectl-co/config.yaml`.
+
+.Environment variables
 [source,sh]
 ----
 # Prefix all config keys with KUBECTL_CO_
 export KUBECTL_CO_DEBUG=true
-export KUBECTL_CO_DELETE=true
 ----
 
 == Shell completion
