@@ -163,7 +163,7 @@ func TestLinkKubeConfig(t *testing.T) {
 				assert.NoFileExists(t, co.KubeConfigPath)
 				return co
 			},
-			wantErr:  false,
+			wantErr:  true,
 			wantLink: false,
 		},
 		{

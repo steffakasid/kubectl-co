@@ -150,7 +150,7 @@ func (co *CO) LinkKubeConfig() error {
 	}
 
 	if _, err := os.Stat(configToUse); errors.Is(err, fs.ErrNotExist) {
-		return nil
+		return fmt.Errorf("config '%s' does not exist", co.ConfigName)
 	}
 
 	if err := co.cleanup(); err != nil {
