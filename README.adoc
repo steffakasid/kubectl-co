@@ -44,7 +44,20 @@ k8s() {
 
 Unfortunately this was a bit limited so I decided to write a little go tool and integrate it as plugin into kubectl.
 
-NOTE: If you set the KUBECONFIG environment var this will always take precedence before the config file.
+== When to use kubectl-co
+
+kubectl-co is useful when you regularly work with **separate kubeconfig files** rather than a single merged config. Typical scenarios:
+
+* **Multiple clusters with isolated credentials** – e.g. production, staging, and development EKS clusters each with their own kubeconfig file. Switching is a single `kubectl co dev` instead of juggling `KUBECONFIG` exports or manual symlinks.
+* **Shared vs. personal clusters** – you maintain a personal homelab config alongside corporate cluster configs and want to toggle between them without risk of mixing contexts.
+* **Onboarding new clusters quickly** – `kubectl co --add <name> <path>` registers a new config in one step; no manual file moves or edits required.
+* **Quick rollback** – `kubectl co --previous` lets you toggle back to the last-used config instantly, which is handy during incident response when you need to jump between clusters.
+* **OpenShift cluster sprawl** – `oc login` adds a new context _and_ namespace entry to your kubeconfig for every project you touch, quickly bloating a single file. Keeping each OpenShift cluster in its own config file via kubectl-co prevents that noise from leaking into your other clusters.
+* **Avoiding credential conflicts from merged configs** – merging kubeconfig files via `KUBECONFIG=file1:file2` silently breaks when two files define the same user name (e.g. both use `kubernetes-admin`). kubectl-co never merges; each file stays independent, so conflicting names are not a problem.
+* **CI scripts or dotfile setups** – the deterministic symlink approach (`~/.kube/config` always points to one file) works well in automation where `KUBECONFIG` merging would add complexity.
+
+NOTE: https://github.com/ahmetb/kubectx[kubectx] solves a different problem: it switches _contexts_ inside a single (merged) kubeconfig file. kubectl-co switches _files_ — keeping credentials fully isolated. If all your clusters live in one kubeconfig and you just need fast context switching, kubectx is the right tool. If you want each cluster in its own file, kubectl-co is the right tool.
+
 
 == Usage
 
@@ -53,6 +66,8 @@ NOTE: If you set the KUBECONFIG environment var this will always take precedence
   kubectl co [flags]
   kubectl-co [flags]
 ----
+
+NOTE: If you set the KUBECONFIG environment var this will always take precedence before the config file.
 
 == Preqrequisites
 
