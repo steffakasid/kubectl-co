@@ -80,6 +80,30 @@ brew install steffakasid/kubectl-co/kubectl-co
 
 Or download the binary from https://github.com/steffakasid/kubectl-co/releases[GitHub Releases] and place it in your `$PATH`.
 
+=== k9s Plugin
+
+If you use https://k9scli.io[k9s], you can install the bundled plugin to access kubectl-co via hotkeys from any view.
+
+IMPORTANT: The `kubectl-co` binary must be installed and available in your `$PATH` before using the plugin. k9s does not ship kubectl-co.
+
+[source,sh]
+----
+cp plugin/k9s.yaml ~/.config/k9s/plugins/kubectl-co.yaml
+----
+
+This registers two shortcuts available in all k9s views:
+
+[cols="1,3"]
+|===
+|Shortcut |Action
+
+|`Ctrl-O`
+|List all kubeconfigs and switch interactively (`kubectl co`)
+
+|`Ctrl-K`
+|Show the currently active kubeconfig path (`kubectl co --current`)
+|===
+
 == Prerequisites
 
 kubectl should be installed (even if the application would also run on its own as `kubectl-co`)

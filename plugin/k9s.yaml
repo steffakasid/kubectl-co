@@ -1,0 +1,24 @@
+---
+plugins:
+  # List all kubeconfigs and switch interactively. Triggered with Ctrl-O from any view.
+  kubectl-co-switch:
+    shortCut: Ctrl-O
+    description: Switch kubeconfig (kubectl-co)
+    scopes:
+      - all
+    command: kubectl
+    background: false
+    args:
+      - co
+
+  # Show the currently active kubeconfig path. Triggered with Ctrl-K from any view.
+  kubectl-co-current:
+    shortCut: Ctrl-K
+    description: Show current kubeconfig (kubectl-co)
+    scopes:
+      - all
+    command: kubectl
+    background: false
+    args:
+      - co
+      - --current
