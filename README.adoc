@@ -137,3 +137,7 @@ echo 'source <(kubectl-co completion bash)' >> ~/.bashrc
 # ~/.zshrc
 echo 'source <(kubectl-co completion zsh)' >> ~/.zshrc
 ----
+
+== TODO
+
+* Publish Homebrew formula updates through one shared tap repository for all projects.

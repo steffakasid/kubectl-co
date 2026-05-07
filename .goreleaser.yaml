@@ -21,8 +21,8 @@ changelog:
       - "^test:"
 # .goreleaser.yaml
 brews:
-  - # GitHub/GitLab repository to push the formula to
-    repository:
+  # GitHub/GitLab repository to push the formula to
+  - repository:
       owner: steffakasid
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
@@ -40,5 +40,6 @@ brews:
     directory: Formula
 
     homepage: "https://github.com/steffakasid/kubectl-go"
-    description: "This tool can be used to manage and switch between multiple kube config files."
+    description: >-
+      Switch between separate kubeconfig files from kubectl
     license: "Apache-2.0"
